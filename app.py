@@ -5,12 +5,12 @@ import pandas as pd
 st.set_page_config(page_title="Prode Empresarial", page_icon="⚽")
 st.title("⚽ Prode Mundialista de la Empresa")
 
-# 1. CONEXIÓN DIRECTA CON GOOGLE SHEETS VIA URL
+# 1. CONEXIÓN DIRECTA CON GOOGLE SHEETS
 try:
     # Leer la URL desde los Secrets de Streamlit
     url_sheet = st.secrets["connections"]["gsheets"]["spreadsheet"]
     
-    # Nos conectamos usando gspread con acceso público (Cualquier persona con el enlace - Editor)
+    # Nos conectamos usando gspread con acceso público
     gc = gspread.public_api()
     sh = gc.open_by_url(url_sheet)
     
@@ -18,19 +18,25 @@ try:
     worksheet_partidos = sh.worksheet("Partidos")
     worksheet_predicciones = sh.worksheet("Predicciones")
     
-    # Convertir los datos a DataFrames de Pandas para poder usarlos en el código
-    partidos_df = pd.DataFrame(worksheet_partidos.get_all_records())
+    # LEER PARTIDOS (Forma ultra segura)
+    data_partidos = worksheet_partidos.get_all_values()
+    if len(data_partidos) > 1:
+        # Usar la primera fila como títulos
+        partidos_df = pd.DataFrame(data_partidos[1:], columns=data_partidos[0])
+    else:
+        partidos_df = pd.DataFrame(columns=["ID", "Equipo1", "Equipo2", "Resultado1", "Resultado2"])
     
-    # Manejar si la pestaña Predicciones está vacía (solo tiene títulos)
-    pred_data = worksheet_predicciones.get_all_records()
-    if pred_data:
-        predicciones_df = pd.DataFrame(pred_data)
+    # LEER PREDICCIONES (Forma ultra segura)
+    data_pred = worksheet_predicciones.get_all_values()
+    if len(data_pred) > 1:
+        predicciones_df = pd.DataFrame(data_pred[1:], columns=data_pred[0])
     else:
         predicciones_df = pd.DataFrame(columns=["Usuario", "Partido_ID", "Pred_1", "Pred_2", "Puntos"])
 
 except Exception as e:
-    st.error("Error al conectar con la base de datos.")
-    st.info("Asegurate de que la Google Sheet esté compartida como 'Cualquier persona con el enlace' en rol de 'Editor'.")
+    st.error("🚨 Error técnico de conexión con Google Sheets:")
+    st.code(str(e))  # <-- ESTO NOS VA A DECIR EL ERROR REAL EN PANTALLA
+    st.info("Recordá que la Google Sheet debe estar compartida como 'Cualquier persona con el enlace' en rol de 'Editor'.")
     st.stop()
 
 # Sistema de pestañas de la interfaz
@@ -46,7 +52,10 @@ with tab1:
         st.subheader("Próximos Partidos")
         nuevas_predicciones = []
         
-        # Filtrar solo partidos activos (Resultado1 vacío o string vacío)
+        # Limpiar espacios en los nombres de las columnas por seguridad
+        partidos_df.columns = partidos_df.columns.str.strip()
+        
+        # Filtrar partidos activos (donde Resultado1 esté vacío)
         if 'Resultado1' in partidos_df.columns:
             partidos_activos = partidos_df[partidos_df['Resultado1'].astype(str).str.strip() == ""]
         else:
@@ -66,10 +75,10 @@ with tab1:
                     
                     nuevas_predicciones.append([
                         usuario,
-                        int(row['ID']),
-                        int(goles1),
-                        int(goles2),
-                        0
+                        str(row['ID']),
+                        str(int(goles1)),
+                        str(int(goles2)),
+                        "0"
                     ])
                     st.markdown("---")
                 
@@ -89,7 +98,7 @@ with tab2:
     if predicciones_df.empty:
         st.info("Aún no hay predicciones cargadas.")
     else:
-        # Forzar que la columna Puntos sea numérica
+        predicciones_df.columns = predicciones_df.columns.str.strip()
         predicciones_df["Puntos"] = pd.to_numeric(predicciones_df["Puntos"], errors='coerce').fillna(0)
         
         tabla_posiciones = predicciones_df.groupby("Usuario")["Puntos"].sum().reset_index()
