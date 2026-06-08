@@ -1,18 +1,18 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
+from streamlit.connections import SheetsConnection
 import pandas as pd
 
 st.set_page_config(page_title="Prode Empresarial", page_icon="⚽")
 st.title("⚽ Prode Mundialista de la Empresa")
 
-# Conexión con Google Sheets
-conn = st.connection("gsheets", type=GSheetsConnection)
+# Conexión NATIVA con Google Sheets
+conn = st.connection("gsheets", type=SheetsConnection)
 
 # 1. LEER DATOS
 try:
     partidos_df = conn.read(worksheet="Partidos")
     predicciones_df = conn.read(worksheet="Predicciones")
-except Exception:
+except Exception as e:
     st.error("Error al conectar con la base de datos. Verificá los permisos de la Google Sheet.")
     st.stop()
 
@@ -29,7 +29,7 @@ with tab1:
         st.subheader("Próximos Partidos")
         nuevas_predicciones = []
         
-        # Filtrar solo partidos que no tienen resultado cargado (aún no se jugaron)
+        # Filtrar solo partidos que no tienen resultado cargado
         partidos_activos = partidos_df[partidos_df['Resultado1'].isna()]
         
         if partidos_activos.empty:
@@ -56,19 +56,15 @@ with tab1:
                 enviado = st.form_submit_button("Guardar Pronósticos")
                 
                 if enviado:
-                    # Convertir a DataFrame y concatenar con lo existente
-                    nuevos_datos_df = pd.DataFrame(nuevas_predicciones)
-                    
-                    # Eliminar predicciones previas del mismo usuario para estos partidos (evita duplicados)
                     if not predicciones_df.empty:
                         predicciones_df = predicciones_df[
                             ~((predicciones_df['Usuario'] == usuario) & 
                               (predicciones_df['Partido_ID'].isin(partidos_activos['ID'])))
                         ]
                     
-                    df_final = pd.concat([predicciones_df, nuevos_datos_df], ignore_index=True)
+                    df_final = pd.concat([predicciones_df, pd.DataFrame(nuevas_predicciones)], ignore_index=True)
                     
-                    # Guardar en Google Sheets
+                    # Guardar usando el método nativo
                     conn.update(worksheet="Predicciones", data=df_final)
                     st.success("¡Pronósticos guardados con éxito! ¡Buena suerte!")
 
@@ -79,13 +75,7 @@ with tab2:
     if predicciones_df.empty:
         st.info("Aún no hay predicciones cargadas.")
     else:
-        # Calcular puntos (Agrupando por usuario)
-        # Nota: El cálculo real de puntos se suele correr con un script secundario 
-        # comparando 'Predicciones' con 'Partidos' (Ej: 3 pts resultado exacto, 1 pt ganador).
-        
         tabla_posiciones = predicciones_df.groupby("Usuario")["Puntos"].sum().reset_index()
         tabla_posiciones = tabla_posiciones.sort_values(by="Puntos", ascending=False)
-        
-        # Formato visual
         tabla_posiciones.index = range(1, len(tabla_posiciones) + 1)
         st.table(tabla_posiciones)
