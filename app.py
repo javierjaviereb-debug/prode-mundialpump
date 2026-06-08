@@ -1,5 +1,4 @@
 import streamlit as st
-from streamlit.connections import SheetsConnection
 import pandas as pd
 
 st.set_page_config(page_title="Prode Empresarial", page_icon="⚽")
