@@ -4,8 +4,8 @@ import pandas as pd
 st.set_page_config(page_title="Prode Empresarial", page_icon="⚽")
 st.title("⚽ Prode Mundialista de la Empresa")
 
-# Conexión NATIVA con Google Sheets
-conn = st.connection("gsheets", type=SheetsConnection)
+# CAMBIÁ ESTA LÍNEA (Tiene que tener "sheets" entre comillas)
+conn = st.connection("gsheets", type="sheets")
 
 # 1. LEER DATOS
 try:
