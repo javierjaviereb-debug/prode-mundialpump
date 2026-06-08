@@ -1,21 +1,30 @@
 import streamlit as st
 import gspread
 import pandas as pd
-import json
 
 st.set_page_config(page_title="Prode Empresarial", page_icon="⚽")
 st.title("⚽ Prode Mundialista de la Empresa")
 
-# 1. AUTENTICACIÓN SEGURA MEDIANTE SECRETS NATIVOS
+# 1. CONEXIÓN NATIVA DE GSPREAD MEDIANTE VARIABLES TOML
 try:
-    # Streamlit lee de forma automática el archivo de configuración
-    credentials_json = st.secrets["gspread_credentials_json"]
+    # Mapeamos los campos nativos desde los Secrets individuales de Streamlit
+    credentials_dict = {
+        "type": st.secrets["gspread_credentials"]["type"],
+        "project_id": st.secrets["gspread_credentials"]["project_id"],
+        "private_key_id": st.secrets["gspread_credentials"]["private_key_id"],
+        "private_key": st.secrets["gspread_credentials"]["private_key"],
+        "client_email": st.secrets["gspread_credentials"]["client_email"],
+        "client_id": st.secrets["gspread_credentials"]["client_id"],
+        "auth_uri": st.secrets["gspread_credentials"]["auth_uri"],
+        "token_uri": st.secrets["gspread_credentials"]["token_uri"],
+        "auth_provider_x509_cert_url": st.secrets["gspread_credentials"]["auth_provider_x509_cert_url"],
+        "client_x509_cert_url": st.secrets["gspread_credentials"]["client_x509_cert_url"],
+        "universe_domain": st.secrets["gspread_credentials"]["universe_domain"]
+    }
+    
     url_sheet = st.secrets["connections"]["gsheets"]["spreadsheet"]
     
-    # Parsea el texto del JSON a un diccionario válido
-    credentials_dict = json.loads(credentials_json)
-    
-    # El robot se conecta a Google Sheets
+    # El robot se conecta usando el diccionario limpio armado en memoria
     gc = gspread.service_account_from_dict(credentials_dict)
     sh = gc.open_by_url(url_sheet)
     
