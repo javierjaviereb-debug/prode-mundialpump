@@ -94,7 +94,7 @@ with st.sidebar:
 
 # --- 2. MOTOR AUTOMÁTICO DE PUNTOS ---
 if not predicciones_df.empty and not partidos_df.empty:
-    prode_merge = pd.merge(predicciones_df, partidos_df, left_on="partid_id", right_on="id", how="left", suffixes=('_pred', '_real'))
+    prode_merge = pd.merge(predicciones_df, partidos_df, left_on="partido_id", right_on="id", how="left", suffixes=('_pred', '_real'))
     
     def calcular_puntos(row):
         if pd.isna(row['resultado1']) or pd.isna(row['resultado2']) or row['resultado1'] is None or row['resultado2'] is None: 
