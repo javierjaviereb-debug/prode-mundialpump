@@ -1,0 +1,4 @@
+streamlit
+st-files-connection
+gspread
+pandas
