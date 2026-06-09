@@ -176,4 +176,78 @@ with tab2:
     st.header("🏆 Ranking de la Oficina en Vivo")
     if tabla_posiciones.empty: 
         st.info("Aún no hay predicciones cargadas.")
+    else: 
+        st.table(tabla_posiciones)
+
+# TAB 3: CONSULTAR JUGADAS DE CUALQUIERA
+with tab3:
+    st.header("🔍 Consultar Pronósticos Registrados")
+    if predicciones_df.empty: 
+        st.info("No hay pronósticos registrados in el sistema.")
     else:
+        todos_usuarios = sorted(predicciones_df["usuario"].unique())
+        user_sel = st.selectbox("Seleccioná un compañero para ver su juego:", todos_usuarios)
+        if user_sel:
+            votos_user = predicciones_df[predicciones_df["usuario"] == user_sel]
+            votos_merge = pd.merge(votos_user, partidos_df, left_on="partido_id", right_on="id")
+            votos_merge["Resultado Real"] = votos_merge.apply(lambda r: f"{r['resultado1']} - {r['resultado2']}" if pd.notna(r['resultado1']) else "Pendiente ⏳", axis=1)
+            votos_merge["Su Pronóstico"] = votos_merge["pred_1"].astype(str) + " - " + votos_merge["pred_2"].astype(str)
+            tabla_ver = votos_merge[["equipo1", "equipo2", "Su Pronóstico", "Resultado Real"]]
+            tabla_ver.columns = ["Equipo 1", "Equipo 2", "Su Pronóstico", "Resultado Oficial"]
+            st.dataframe(tabla_ver, use_container_width=True)
+
+# TAB 4: PANTALLA MASIVA DEL ADMINISTRADOR
+with tab4:
+    st.header("👑 Panel de Gestión Masiva (Exclusivo Administrador)")
+    if modo_admin and password == "pump2026":
+        if partidos_df.empty:
+            st.info("No hay partidos creados en el fixture todavía. Podés agregar partidos desde la barra lateral izquierda.")
+        else:
+            st.write("Cargá los resultados oficiales y gestioná los bloqueos de toda la fecha en una sola pantalla:")
+            
+            with st.form("form_gestion_masiva_admin"):
+                admin_inputs = []
+                
+                header_c1, header_c2, header_c3, header_c4 = st.columns([1, 3, 2, 2])
+                with header_c1: st.markdown("**ID**")
+                with header_c2: st.markdown("**Partido**")
+                with header_c3: st.markdown("**Resultado Oficial**")
+                with header_c4: st.markdown("**Estado / Bloqueo**")
+                st.markdown("---")
+                
+                for idx, row in partidos_df.iterrows():
+                    c1, c2, c3, c4 = st.columns([1, 3, 2, 2])
+                    
+                    with c1: 
+                        st.write(f"#{row['id']}")
+                    with c2: 
+                        st.markdown(f"**{row['equipo1']} vs. {row['equipo2']}**")
+                    with c3:
+                        sub_c1, sub_c2 = st.columns(2)
+                        val_res1 = int(row['resultado1']) if pd.notna(row['resultado1']) else 0
+                        val_res2 = int(row['resultado2']) if pd.notna(row['resultado2']) else 0
+                        
+                        ya_jugado = st.checkbox("Cargar", value=pd.notna(row['resultado1']), key=f"play_{row['id']}")
+                        g_r1 = sub_c1.number_input("G1", min_value=0, max_value=15, step=1, value=val_res1, key=f"adm_r1_{row['id']}")
+                        g_r2 = sub_c2.number_input("G2", min_value=0, max_value=15, step=1, value=val_res2, key=f"adm_r2_{row['id']}")
+                    with c4:
+                        bloqueado = st.checkbox("🚫 Bloquear", value=(row['estado'] == 1), key=f"block_{row['id']}")
+                    
+                    admin_inputs.append((row['id'], ya_jugado, g_r1, g_r2, bloqueado))
+                    st.markdown("---")
+                
+                if st.form_submit_button("💾 GUARDAR CAMBIOS DE TODA LA FECHA"):
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    for p_id, jugado, r1, r2, block in admin_inputs:
+                        nuevo_estado = 1 if (block or jugado) else 0
+                        if jugado:
+                            cursor.execute("UPDATE partidos SET resultado1 = ?, resultado2 = ?, estado = ? WHERE id = ?", (int(r1), int(r2), nuevo_estado, p_id))
+                        else:
+                            cursor.execute("UPDATE partidos SET resultado1 = NULL, resultado2 = NULL, estado = ? WHERE id = ?", (nuevo_estado, p_id))
+                    conn.commit()
+                    conn.close()
+                    st.success("¡Base de datos actualizada por completo!")
+                    st.rerun()
+    else:
+        st.warning("⚠️ Debes activar el modo Administrador ingresando la contraseña en la barra lateral izquierda para usar esta sección.")
