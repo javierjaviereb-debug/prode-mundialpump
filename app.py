@@ -6,44 +6,63 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="Prode Empresarial", page_icon="⚽", layout="wide")
 st.title("⚽ Prode Mundialista - Pump Control")
 
-# --- DICCIONARIO AMPLIADO Y CORREGIDO DE BANDERAS (INMUNE A MAYÚSCULAS/TILDES) ---
-BANDERAS = {
-    "argentina": "🇦🇷", "árgentina": "🇦🇷", "arg": "🇦🇷",
-    "brasil": "🇧🇷", "brazil": "🇧🇷", "bra": "🇧🇷",
-    "uruguay": "🇺🇾", "ury": "🇺🇾",
-    "colombia": "🇨🇴", "col": "🇨🇴",
-    "chile": "🇨🇱", "chi": "🇨🇱",
-    "peru": "🇵🇪", "perú": "🇵🇪", "per": "🇵🇪",
-    "ecuador": "🇪🇨", "ecu": "🇪🇨",
-    "venezuela": "🇻🇪", "ven": "🇻🇪",
-    "paraguay": "🇵🇾", "pry": "🇵🇾",
-    "bolivia": "🇧🇴", "bol": "🇧🇴",
-    "usa": "🇺🇸", "estados unidos": "🇺🇸", "eeuu": "🇺🇸",
-    "mexico": "🇲🇽", "méxico": "🇲🇽", "mex": "🇲🇽",
-    "canada": "🇨🇦", "canadá": "🇨🇦", "can": "🇨🇦",
-    "francia": "🇫🇷", "france": "🇫🇷", "fra": "🇫🇷",
-    "alemania": "🇩🇪", "germany": "🇩🇪", "ger": "🇩🇪",
-    "italia": "🇮🇹", "italy": "🇮🇹", "ita": "🇮🇹",
-    "espana": "🇪🇸", "españa": "🇪🇸", "esp": "🇪🇸",
-    "inglaterra": "🇬🇧", "england": "🇬🇧", "eng": "🇬🇧",
-    "portugal": "🇵🇹", "por": "🇵🇹",
-    "holanda": "🇳🇱", "paises bajos": "🇳🇱", "países bajos": "🇳🇱", "ned": "🇳🇱",
-    "belgica": "🇧🇪", "bélgica": "🇧🇪", "bel": "🇧🇪",
-    "croacia": "🇭🇷", "cro": "🇭🇷",
-    "suiza": "🇨🇭", "sui": "🇨🇭",
-    "japon": "🇯🇵", "japón": "🇯🇵", "jpn": "🇯🇵",
-    "corea del sur": "🇰🇷", "kor": "🇰🇷",
-    "australia": "🇦🇺", "aus": "🇦🇺",
-    "marruecos": "🇲🇦", "mar": "🇲🇦",
-    "senegal": "🇸🇳", "sen": "🇸🇳",
-    "arabia saudita": "🇸🇦", "sau": "🇸🇦",
-    "catar": "🇶🇦", "qatar": "🇶🇦", "qat": "🇶🇦"
+# --- DICCIONARIO DE BANDERAS REALES EN ALTA RESOLUCIÓN (INMUNE A WINDOWS/CELULARES) ---
+BANDERAS_URL = {
+    "argentina": "https://flagcdn.com/w40/ar.png", "árgentina": "https://flagcdn.com/w40/ar.png", "arg": "https://flagcdn.com/w40/ar.png",
+    "brasil": "https://flagcdn.com/w40/br.png", "brazil": "https://flagcdn.com/w40/br.png", "bra": "https://flagcdn.com/w40/br.png",
+    "uruguay": "https://flagcdn.com/w40/uy.png", "ury": "https://flagcdn.com/w40/uy.png",
+    "colombia": "https://flagcdn.com/w40/co.png", "col": "https://flagcdn.com/w40/co.png",
+    "chile": "https://flagcdn.com/w40/cl.png", "chi": "https://flagcdn.com/w40/cl.png",
+    "peru": "https://flagcdn.com/w40/pe.png", "perú": "https://flagcdn.com/w40/pe.png", "per": "https://flagcdn.com/w40/pe.png",
+    "ecuador": "https://flagcdn.com/w40/ec.png", "ecu": "https://flagcdn.com/w40/ec.png",
+    "venezuela": "https://flagcdn.com/w40/ve.png", "ven": "https://flagcdn.com/w40/ve.png",
+    "paraguay": "https://flagcdn.com/w40/py.png", "pry": "https://flagcdn.com/w40/py.png",
+    "bolivia": "https://flagcdn.com/w40/bo.png", "bol": "https://flagcdn.com/w40/bo.png",
+    "usa": "https://flagcdn.com/w40/us.png", "estados unidos": "https://flagcdn.com/w40/us.png", "eeuu": "https://flagcdn.com/w40/us.png",
+    "mexico": "https://flagcdn.com/w40/mx.png", "méxico": "https://flagcdn.com/w40/mx.png", "mex": "https://flagcdn.com/w40/mx.png",
+    "canada": "https://flagcdn.com/w40/ca.png", "canadá": "https://flagcdn.com/w40/ca.png", "can": "https://flagcdn.com/w40/ca.png",
+    "francia": "https://flagcdn.com/w40/fr.png", "france": "https://flagcdn.com/w40/fr.png", "fra": "https://flagcdn.com/w40/fr.png",
+    "alemania": "https://flagcdn.com/w40/de.png", "germany": "https://flagcdn.com/w40/de.png", "ger": "https://flagcdn.com/w40/de.png",
+    "italia": "https://flagcdn.com/w40/it.png", "italy": "https://flagcdn.com/w40/it.png", "ita": "https://flagcdn.com/w40/it.png",
+    "espana": "https://flagcdn.com/w40/es.png", "españa": "https://flagcdn.com/w40/es.png", "esp": "https://flagcdn.com/w40/es.png",
+    "inglaterra": "https://flagcdn.com/w40/gb-eng.png", "england": "https://flagcdn.com/w40/gb-eng.png", "eng": "https://flagcdn.com/w40/gb-eng.png",
+    "portugal": "https://flagcdn.com/w40/pt.png", "por": "https://flagcdn.com/w40/pt.png",
+    "holanda": "https://flagcdn.com/w40/nl.png", "paises bajos": "https://flagcdn.com/w40/nl.png", "países bajos": "https://flagcdn.com/w40/nl.png", "ned": "https://flagcdn.com/w40/nl.png",
+    "belgica": "https://flagcdn.com/w40/be.png", "bélgica": "https://flagcdn.com/w40/be.png", "bel": "https://flagcdn.com/w40/be.png",
+    "croacia": "https://flagcdn.com/w40/hr.png", "cro": "https://flagcdn.com/w40/hr.png",
+    "suiza": "https://flagcdn.com/w40/ch.png", "sui": "https://flagcdn.com/w40/ch.png",
+    "japon": "https://flagcdn.com/w40/jp.png", "japón": "https://flagcdn.com/w40/jp.png", "jpn": "https://flagcdn.com/w40/jp.png",
+    "corea del sur": "https://flagcdn.com/w40/kr.png", "kor": "https://flagcdn.com/w40/kr.png",
+    "australia": "https://flagcdn.com/w40/au.png", "aus": "https://flagcdn.com/w40/au.png",
+    "marruecos": "https://flagcdn.com/w40/ma.png", "mar": "https://flagcdn.com/w40/ma.png",
+    "senegal": "https://flagcdn.com/w40/sn.png", "sen": "https://flagcdn.com/w40/sn.png",
+    "arabia saudita": "https://flagcdn.com/w40/sa.png", "sau": "https://flagcdn.com/w40/sa.png",
+    "catar": "https://flagcdn.com/w40/qa.png", "qatar": "https://flagcdn.com/w40/qa.png", "qat": "https://flagcdn.com/w40/qa.png"
 }
 
-def obtener_bandera(nombre_equipo):
-    # Pasamos a minúsculas y sacamos espacios para que coincida siempre
-    nombre_limpio = str(nombre_equipo).strip().lower()
-    return BANDERAS.get(nombre_limpio, "🏆")
+# Icono genérico si no encuentra el país
+PELOTA_URL = "https://cdn-icons-png.flaticon.com/24/33/33736.png"
+
+def mostrar_partido_con_banderas(grupo, eq1, eq2, info_adicional=""):
+    url1 = BANDERAS_URL.get(str(eq1).strip().lower(), PELOTA_URL)
+    url2 = BANDERAS_URL.get(str(eq2).strip().lower(), PELOTA_URL)
+    
+    # Renderizado HTML limpio y estandarizado para PC y Móvil
+    st.markdown(
+        f"""
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 4px;">
+            <span style="font-weight: bold; background-color: #f0f2f6; padding: 2px 6px; border-radius: 4px;">🏆 {grupo}</span>
+            <img src="{url1}" width="24" style="border: 1px solid #ccc; border-radius: 2px; vertical-align: middle;">
+            <span style="font-size: 16px; font-weight: bold;">{eq1}</span>
+            <span style="color: #666;">vs.</span>
+            <span style="font-size: 16px; font-weight: bold;">{eq2}</span>
+            <img src="{url2}" width="24" style="border: 1px solid #ccc; border-radius: 2px; vertical-align: middle;">
+        </div>
+        """, 
+        unsafe_allow_html=True
+    )
+    if info_adicional:
+        st.markdown(info_adicional, unsafe_allow_html=True)
 
 # --- 1. BASE DE DATOS LOCAL (SQLITE) ---
 DB_NAME = "prode_internal.db"
@@ -186,7 +205,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "👑 Panel de Gestión Masiva (Admin)"
 ])
 
-# TAB 1: MI JUEGO (DISEÑO ADAPTADO MÓVIL Y PC)
+# TAB 1: MI JUEGO (REVISADO Y CORREGIDO SIN LA PALABRA "GOLES")
 with tab1:
     st.header("📝 Tus Pronósticos de la Fecha")
     col_user, col_pass = st.columns(2)
@@ -230,24 +249,22 @@ with tab1:
                         dt_p = datetime.strptime(row['fecha_partido'], "%Y-%m-%d %H:%M")
                         dt_l = dt_p - timedelta(days=1)
                         
-                        b1 = obtener_bandera(row['equipo1'])
-                        b2 = obtener_bandera(row['equipo2'])
-                        
                         col_info, col_inputs = st.columns([2, 2])
                         with col_info:
-                            # Título limpio y amigable para ver en cualquier pantalla
-                            st.markdown(f"🏆 **{row['grupo']}** | {b1} **{row['equipo1']}** vs. **{row['equipo2']}** {b2}")
-                            st.caption(f"📅 Partido: {dt_p.strftime('%d/%m %H:%M')} hs | 🔒 Cierra: {dt_l.strftime('%d/%m %H:%M')} hs")
+                            # Info del partido con imagen real
+                            info_txt = f"<div style='margin-top:4px;'>📅 Partido: {dt_p.strftime('%d/%m %H:%M')} hs | 🔒 Cierra: {dt_l.strftime('%d/%m %H:%M')} hs<br>"
                             if not voto_previo.empty:
-                                st.markdown(f"<span style='color:green;'>✔️ Tu carga actual: {val_def1} - {val_def2}</span>", unsafe_allow_html=True)
+                                info_txt += f"<span style='color:green; font-weight:bold;'>✔️ Tu carga actual: {val_def1} - {val_def2}</span></div>"
                             else:
-                                st.markdown("<span style='color:orange;'>⏳ Pendiente de carga</span>", unsafe_allow_html=True)
+                                info_txt += "<span style='color:orange;'>⏳ Pendiente de carga</span></div>"
+                            
+                            mostrar_partido_con_banderas(row['grupo'], row['equipo1'], row['equipo2'], info_txt)
                         
                         with col_inputs:
                             sub_c1, sub_c2 = st.columns(2)
-                            # Usamos un formato estandarizado que no dependa puramente de las fuentes de Windows
-                            with sub_c1: g1 = st.number_input(f"Goles - {row['equipo1']}", min_value=0, max_value=15, step=1, value=val_def1, key=f"u1_{row['id']}")
-                            with sub_c2: g2 = st.number_input(f"Goles - {row['equipo2']}", min_value=0, max_value=15, step=1, value=val_def2, key=f"u2_{row['id']}")
+                            # Quitamos por completo la palabra "Goles", queda solo el nombre limpio del país
+                            with sub_c1: g1 = st.number_input(f"{row['equipo1']}", min_value=0, max_value=15, step=1, value=val_def1, key=f"u1_{row['id']}")
+                            with sub_c2: g2 = st.number_input(f"{row['equipo2']}", min_value=0, max_value=15, step=1, value=val_def2, key=f"u2_{row['id']}")
                         
                         inputs.append((row['id'], g1, g2))
                         st.markdown("---")
@@ -280,8 +297,7 @@ with tab3:
             votos_merge = pd.merge(votos_user, partidos_df, left_on="partido_id", right_on="id")
             votos_merge["Resultado Real"] = votos_merge.apply(lambda r: f"{r['resultado1']} - {r['resultado2']}" if pd.notna(r['resultado1']) else "Pendiente ⏳", axis=1)
             votos_merge["Su Pronóstico"] = votos_merge["pred_1"].astype(str) + " - " + votos_merge["pred_2"].astype(str)
-            
-            votos_merge["Partido"] = votos_merge["equipo1"].apply(obtener_bandera) + " " + votos_merge["equipo1"] + " vs. " + votos_merge["equipo2"] + " " + votos_merge["equipo2"].apply(obtener_bandera)
+            votos_merge["Partido"] = votos_merge["equipo1"].astype(str) + " vs. " + votos_merge["equipo2"].astype(str)
             
             tabla_ver = votos_merge[["grupo", "Partido", "Su Pronóstico", "Resultado Real"]]
             tabla_ver.columns = ["Grupo/Etapa", "Partido", "Su Pronóstico", "Resultado Oficial"]
@@ -305,13 +321,13 @@ with tab4:
                 
                 for idx, row in partidos_df.iterrows():
                     c1, c2, c3, c4 = st.columns([1, 3, 2, 2])
-                    b1, b2 = obtener_bandera(row['equipo1']), obtener_bandera(row['equipo2'])
                     
                     with c1:
                         st.write(f"#{row['id']}")
                         st.caption(f"🏆 {row['grupo']}")
                     with c2:
-                        st.markdown(f"{b1} **{row['equipo1']} vs. {row['equipo2']}** {b2}")
+                        # Vista administrativa con banderas reales por imagen
+                        mostrar_partido_con_banderas(row['grupo'], row['equipo1'], row['equipo2'])
                         st.caption(f"📅 {row['fecha_partido']} hs")
                     with c3:
                         sub_c1, sub_c2 = st.columns(2)
@@ -324,7 +340,7 @@ with tab4:
                     with c4:
                         bloqueado = st.checkbox("🚫 Forzar Bloqueo", value=(row['estado'] == 1), key=f"block_{row['id']}")
                     
-                    admin_inputs.append((row['id'], ya_jugado, g_r1, g_r2, bloqueado))
+                    admin_inputs.append((row['id'], ya_jugado, g_r1, g_r2, block))
                     st.markdown("---")
                 
                 if st.form_submit_button("💾 GUARDAR CAMBIOS DE TODA LA FECHA"):
