@@ -176,4 +176,4 @@ with tab2:
     st.header("🏆 Ranking de la Oficina en Vivo")
     if tabla_posiciones.empty: 
         st.info("Aún no hay predicciones cargadas.")
-    else
+    else:
