@@ -6,22 +6,44 @@ from datetime import datetime, timedelta
 st.set_page_config(page_title="Prode Empresarial", page_icon="⚽", layout="wide")
 st.title("⚽ Prode Mundialista - Pump Control")
 
-# --- DICCIONARIO AUTOMÁTICO DE BANDERAS ---
+# --- DICCIONARIO AMPLIADO Y CORREGIDO DE BANDERAS (INMUNE A MAYÚSCULAS/TILDES) ---
 BANDERAS = {
-    "argentina": "🇦🇷", "brasil": "🇧🇷", "uruguay": "🇺🇾", "colombia": "🇨🇴", 
-    "chile": "🇨🇱", "peru": "🇵🇪", "ecuador": "🇪🇨", "venezuela": "🇻🇪", 
-    "paraguay": "🇵🇾", "bolivia": "🇧🇴", "usa": "🇺🇸", "estados unidos": "🇺🇸", 
-    "mexico": "🇲🇽", "méxico": "🇲🇽", "canada": "🇨🇦", "canadá": "🇨🇦",
-    "francia": "🇫🇷", "alemania": "🇩🇪", "italia": "🇮🇹", "españa": "🇪🇸", 
-    "inglaterra": "🇬🇧", "portugal": "🇵🇹", "holanda": "🇳🇱", "países bajos": "🇳🇱", 
-    "belgica": "🇧🇪", "bélgica": "🇧🇪", "croacia": "🇭🇷", "suiza": "🇨🇭",
-    "japon": "🇯🇵", "japón": "🇯🇵", "corea del sur": "🇰🇷", "australia": "🇦🇺", 
-    "marruecos": "🇲🇦", "senegal": "🇸🇳", "arabia saudita": "🇸🇦", "catar": "🇶🇦"
+    "argentina": "🇦🇷", "árgentina": "🇦🇷", "arg": "🇦🇷",
+    "brasil": "🇧🇷", "brazil": "🇧🇷", "bra": "🇧🇷",
+    "uruguay": "🇺🇾", "ury": "🇺🇾",
+    "colombia": "🇨🇴", "col": "🇨🇴",
+    "chile": "🇨🇱", "chi": "🇨🇱",
+    "peru": "🇵🇪", "perú": "🇵🇪", "per": "🇵🇪",
+    "ecuador": "🇪🇨", "ecu": "🇪🇨",
+    "venezuela": "🇻🇪", "ven": "🇻🇪",
+    "paraguay": "🇵🇾", "pry": "🇵🇾",
+    "bolivia": "🇧🇴", "bol": "🇧🇴",
+    "usa": "🇺🇸", "estados unidos": "🇺🇸", "eeuu": "🇺🇸",
+    "mexico": "🇲🇽", "méxico": "🇲🇽", "mex": "🇲🇽",
+    "canada": "🇨🇦", "canadá": "🇨🇦", "can": "🇨🇦",
+    "francia": "🇫🇷", "france": "🇫🇷", "fra": "🇫🇷",
+    "alemania": "🇩🇪", "germany": "🇩🇪", "ger": "🇩🇪",
+    "italia": "🇮🇹", "italy": "🇮🇹", "ita": "🇮🇹",
+    "espana": "🇪🇸", "españa": "🇪🇸", "esp": "🇪🇸",
+    "inglaterra": "🇬🇧", "england": "🇬🇧", "eng": "🇬🇧",
+    "portugal": "🇵🇹", "por": "🇵🇹",
+    "holanda": "🇳🇱", "paises bajos": "🇳🇱", "países bajos": "🇳🇱", "ned": "🇳🇱",
+    "belgica": "🇧🇪", "bélgica": "🇧🇪", "bel": "🇧🇪",
+    "croacia": "🇭🇷", "cro": "🇭🇷",
+    "suiza": "🇨🇭", "sui": "🇨🇭",
+    "japon": "🇯🇵", "japón": "🇯🇵", "jpn": "🇯🇵",
+    "corea del sur": "🇰🇷", "kor": "🇰🇷",
+    "australia": "🇦🇺", "aus": "🇦🇺",
+    "marruecos": "🇲🇦", "mar": "🇲🇦",
+    "senegal": "🇸🇳", "sen": "🇸🇳",
+    "arabia saudita": "🇸🇦", "sau": "🇸🇦",
+    "catar": "🇶🇦", "qatar": "🇶🇦", "qat": "🇶🇦"
 }
 
 def obtener_bandera(nombre_equipo):
+    # Pasamos a minúsculas y sacamos espacios para que coincida siempre
     nombre_limpio = str(nombre_equipo).strip().lower()
-    return BANDERAS.get(nombre_limpio, "⚽")
+    return BANDERAS.get(nombre_limpio, "🏆")
 
 # --- 1. BASE DE DATOS LOCAL (SQLITE) ---
 DB_NAME = "prode_internal.db"
@@ -164,7 +186,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "👑 Panel de Gestión Masiva (Admin)"
 ])
 
-# TAB 1: MI JUEGO
+# TAB 1: MI JUEGO (DISEÑO ADAPTADO MÓVIL Y PC)
 with tab1:
     st.header("📝 Tus Pronósticos de la Fecha")
     col_user, col_pass = st.columns(2)
@@ -213,6 +235,7 @@ with tab1:
                         
                         col_info, col_inputs = st.columns([2, 2])
                         with col_info:
+                            # Título limpio y amigable para ver en cualquier pantalla
                             st.markdown(f"🏆 **{row['grupo']}** | {b1} **{row['equipo1']}** vs. **{row['equipo2']}** {b2}")
                             st.caption(f"📅 Partido: {dt_p.strftime('%d/%m %H:%M')} hs | 🔒 Cierra: {dt_l.strftime('%d/%m %H:%M')} hs")
                             if not voto_previo.empty:
@@ -222,8 +245,9 @@ with tab1:
                         
                         with col_inputs:
                             sub_c1, sub_c2 = st.columns(2)
-                            with sub_c1: g1 = st.number_input(f"{b1} {row['equipo1']}", min_value=0, max_value=15, step=1, value=val_def1, key=f"u1_{row['id']}")
-                            with sub_c2: g2 = st.number_input(f"{row['equipo2']} {b2}", min_value=0, max_value=15, step=1, value=val_def2, key=f"u2_{row['id']}")
+                            # Usamos un formato estandarizado que no dependa puramente de las fuentes de Windows
+                            with sub_c1: g1 = st.number_input(f"Goles - {row['equipo1']}", min_value=0, max_value=15, step=1, value=val_def1, key=f"u1_{row['id']}")
+                            with sub_c2: g2 = st.number_input(f"Goles - {row['equipo2']}", min_value=0, max_value=15, step=1, value=val_def2, key=f"u2_{row['id']}")
                         
                         inputs.append((row['id'], g1, g2))
                         st.markdown("---")
@@ -263,7 +287,7 @@ with tab3:
             tabla_ver.columns = ["Grupo/Etapa", "Partido", "Su Pronóstico", "Resultado Oficial"]
             st.dataframe(tabla_ver, use_container_width=True, hide_index=True)
 
-# TAB 4: PANTALLA MASIVA DEL ADMINISTRADOR (LÍNEA 297 ARREGLADA COMPLETAMENTE)
+# TAB 4: PANTALLA MASIVA DEL ADMINISTRADOR
 with tab4:
     st.header("👑 Panel de Gestión Masiva (Exclusivo Administrador)")
     if modo_admin and password == "pump2026":
@@ -294,7 +318,6 @@ with tab4:
                         val_res1 = int(row['resultado1']) if pd.notna(row['resultado1']) else 0
                         val_res2 = int(row['resultado2']) if pd.notna(row['resultado2']) else 0
                         
-                        # Aquí estaba el corte; ahora está la función pd.notna completa y bien cerrada
                         ya_jugado = st.checkbox("Cargar", value=pd.notna(row['resultado1']), key=f"play_{row['id']}")
                         g_r1 = sub_c1.number_input("G1", min_value=0, max_value=15, step=1, value=val_res1, key=f"adm_r1_{row['id']}")
                         g_r2 = sub_c2.number_input("G2", min_value=0, max_value=15, step=1, value=val_res2, key=f"adm_r2_{row['id']}")
