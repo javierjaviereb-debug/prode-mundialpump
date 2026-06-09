@@ -65,28 +65,51 @@ with st.sidebar:
             else:
                 st.info("Aún no hay usuarios dados de alta.")
             
-            # SECCIÓN B: AGREGAR PARTIDOS AL FIXTURE
+            # SECCIÓN B: CARGA MASIVA DE NUEVA ETAPA / FIXTURE
             st.markdown("---")
-            st.subheader("➕ Agregar Partido al Fixture")
-            with st.form("form_add_partido"):
-                new_id = st.text_input("ID único (Ej: 1, 2, 3...):")
-                col_eq1, col_eq2 = st.columns(2)
-                with col_eq1: new_eq1 = st.text_input("Equipo A:")
-                with col_eq2: new_eq2 = st.text_input("Equipo B:")
-                if st.form_submit_button("Añadir Partido"):
-                    if new_id and new_eq1 and new_eq2:
+            st.subheader("⚡ Carga Masiva de Partidos")
+            st.write("Pegá los partidos abajo respetando este formato:")
+            st.code("ID, Equipo A, Equipo B\n(Ejemplo:\n10, Argentina, Uruguay\n11, Francia, Holanda)")
+            
+            data_masiva = st.text_area("Lista de partidos a agregar:", height=150, placeholder="10, Argentina, Uruguay\n11, Francia, Holanda")
+            
+            if st.button("🚀 Procesar e Inyectar Fixture Masivo"):
+                if data_masiva.strip():
+                    lineas = data_masiva.strip().split("\n")
+                    partidos_a_insertar = []
+                    errores = []
+                    
+                    for linea in lineas:
+                        if not linea.strip():
+                            continue
+                        # Soportamos separación por coma (,) o por guion (-)
+                        partes = linea.replace("-", ",").split(",")
+                        if len(partes) == 3:
+                            p_id = partes[0].strip()
+                            eq1 = partes[1].strip()
+                            eq2 = partes[2].strip()
+                            partidos_a_insertar.append((p_id, eq1, eq2))
+                        else:
+                            errores.append(f"Línea mal formateada: '{linea}'")
+                    
+                    if errores:
+                        for err in errores:
+                            st.error(err)
+                    elif partidos_a_insertar:
                         try:
                             conn = get_connection()
                             cursor = conn.cursor()
-                            cursor.execute("INSERT INTO partidos (id, equipo1, equipo2, estado) VALUES (?, ?, ?, 0)", (new_id.strip(), new_eq1.strip(), new_eq2.strip()))
+                            # Insertamos masivamente ignorando si el ID ya existe para no romper la base
+                            cursor.executemany("INSERT OR IGNORE INTO partidos (id, equipo1, equipo2, estado) VALUES (?, ?, ?, 0)", partidos_a_insertar)
                             conn.commit()
                             conn.close()
-                            st.success(f"Partido {new_id} añadido.")
+                            st.success(f"¡Se procesaron e inyectaron {len(partidos_a_insertar)} partidos con éxito al fixture!")
                             st.rerun()
-                        except: 
-                            st.error("El ID ya existe.")
-                    else: 
-                        st.warning("Completá todos los campos.")
+                        except Exception as e:
+                            st.error(f"Error al guardar en la base de datos: {e}")
+                else:
+                    st.warning("El cuadro de texto está vacío.")
+                    
         elif password != "":
             st.error("Contraseña incorrecta")
 
@@ -133,7 +156,7 @@ with tab1:
         partidos_votables = partidos_df[partidos_df['estado'] == 0]
         
         if partidos_votables.empty:
-            st.info("No hay partidos abiertos para pronosticar en este momento. ¡Esperá a que se habilite la próxima fecha!")
+            st.info("No hay partidos abiertos para pronosticar en este momento. ¡Esperá a que se habilite la próxima fecha o etapa!")
         else:
             st.subheader("⚽ Partidos disponibles para jugar o corregir")
             st.write("💡 *Abajo podés ver lo que cargaste previamente. Si querés corregir algo antes de que empiece el partido, cambialo y dale a 'Guardar Cambios'.*")
@@ -168,7 +191,7 @@ with tab1:
                         cursor.execute("INSERT OR REPLACE INTO predicciones (usuario, partido_id, pred_1, pred_2) VALUES (?, ?, ?, ?)", (usuario, str(p_id), int(g1), int(g2)))
                     conn.commit()
                     conn.close()
-                    st.success("¡Tus jugadas se procesaron con éxito!")
+                    st.success("¡Tus jugadas se guardaron o actualizaron con éxito!")
                     st.rerun()
 
 # TAB 2: RANKING EN VIVO
@@ -183,7 +206,7 @@ with tab2:
 with tab3:
     st.header("🔍 Consultar Pronósticos Registrados")
     if predicciones_df.empty: 
-        st.info("No hay pronósticos registrados in el sistema.")
+        st.info("No hay pronósticos registrados en el sistema.")
     else:
         todos_usuarios = sorted(predicciones_df["usuario"].unique())
         user_sel = st.selectbox("Seleccioná un compañero para ver su juego:", todos_usuarios)
@@ -196,12 +219,12 @@ with tab3:
             tabla_ver.columns = ["Equipo 1", "Equipo 2", "Su Pronóstico", "Resultado Oficial"]
             st.dataframe(tabla_ver, use_container_width=True)
 
-# TAB 4: PANTALLA MASIVA DEL ADMINISTRADOR
+# TAB 4: PANTALLA MASIVA DEL ADMINISTRADOR (CARGA DE RESULTADOS Y BLOQUEOS)
 with tab4:
     st.header("👑 Panel de Gestión Masiva (Exclusivo Administrador)")
     if modo_admin and password == "pump2026":
         if partidos_df.empty:
-            st.info("No hay partidos creados en el fixture todavía. Podés agregar partidos desde la barra lateral izquierda.")
+            st.info("No hay partidos creados en el fixture todavía. Podés usar la sección de Carga Masiva en la barra lateral izquierda.")
         else:
             st.write("Cargá los resultados oficiales y gestioná los bloqueos de toda la fecha en una sola pantalla:")
             
