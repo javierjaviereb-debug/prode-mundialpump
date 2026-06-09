@@ -164,7 +164,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "👑 Panel de Gestión Masiva (Admin)"
 ])
 
-# TAB 1: MI JUEGO (REVISADO AL 100% Y FORMULARIO COMPLETAMENTE CERRADO)
+# TAB 1: MI JUEGO
 with tab1:
     st.header("📝 Tus Pronósticos de la Fecha")
     col_user, col_pass = st.columns(2)
@@ -263,7 +263,7 @@ with tab3:
             tabla_ver.columns = ["Grupo/Etapa", "Partido", "Su Pronóstico", "Resultado Oficial"]
             st.dataframe(tabla_ver, use_container_width=True, hide_index=True)
 
-# TAB 4: PANTALLA MASIVA DEL ADMINISTRADOR
+# TAB 4: PANTALLA MASIVA DEL ADMINISTRADOR (LÍNEA 297 ARREGLADA COMPLETAMENTE)
 with tab4:
     st.header("👑 Panel de Gestión Masiva (Exclusivo Administrador)")
     if modo_admin and password == "pump2026":
@@ -294,4 +294,28 @@ with tab4:
                         val_res1 = int(row['resultado1']) if pd.notna(row['resultado1']) else 0
                         val_res2 = int(row['resultado2']) if pd.notna(row['resultado2']) else 0
                         
-                        ya_jugado = st.checkbox("Cargar", value=pd.not
+                        # Aquí estaba el corte; ahora está la función pd.notna completa y bien cerrada
+                        ya_jugado = st.checkbox("Cargar", value=pd.notna(row['resultado1']), key=f"play_{row['id']}")
+                        g_r1 = sub_c1.number_input("G1", min_value=0, max_value=15, step=1, value=val_res1, key=f"adm_r1_{row['id']}")
+                        g_r2 = sub_c2.number_input("G2", min_value=0, max_value=15, step=1, value=val_res2, key=f"adm_r2_{row['id']}")
+                    with c4:
+                        bloqueado = st.checkbox("🚫 Forzar Bloqueo", value=(row['estado'] == 1), key=f"block_{row['id']}")
+                    
+                    admin_inputs.append((row['id'], ya_jugado, g_r1, g_r2, bloqueado))
+                    st.markdown("---")
+                
+                if st.form_submit_button("💾 GUARDAR CAMBIOS DE TODA LA FECHA"):
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    for p_id, jugado, r1, r2, block in admin_inputs:
+                        nuevo_estado = 1 if (block or jugado) else 0
+                        if jugado:
+                            cursor.execute("UPDATE partidos SET resultado1 = ?, resultado2 = ?, estado = ? WHERE id = ?", (int(r1), int(r2), nuevo_estado, p_id))
+                        else:
+                            cursor.execute("UPDATE partidos SET resultado1 = NULL, resultado2 = NULL, estado = ? WHERE id = ?", (nuevo_estado, p_id))
+                    conn.commit()
+                    conn.close()
+                    st.success("¡Base de datos y puntajes actualizados!")
+                    st.rerun()
+    else:
+        st.warning("⚠️ Debes activar el modo Administrador.")
