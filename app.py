@@ -133,28 +133,30 @@ with tab1:
             
             with st.form("form_prode_usuario"):
                 inputs = []
-                for idx, row in partidos_votables.iterrows():
-                    # Validación en tiempo real: Buscamos si el usuario ya tiene un voto previo registrado en la base de datos
-                    voto_previo = predicciones_df[(predicciones_df['usuario'] == usuario) & (predicciones_df['partido_id'] == row['id'])]
+                for idx, row in partidos_df.iterrows():
+                    c1, c2, c3, c4 = st.columns([1, 3, 2, 2]) # <--- Así queda corregido y cerrado
                     
-                    # Si ya votó, usamos su carga previa como valor por defecto, si no, arranca en 0
-                    val_def1 = int(voto_previo.iloc[0]['pred_1']) if not voto_previo.empty else 0
-                    val_def2 = int(voto_previo.iloc[0]['pred_2']) if not voto_previo.empty else 0
+                    # Columna 1: ID
+                    with c1: st.write(f"#{row['id']}")
                     
-                    # Interfaz amigable para el usuario
-                    col_info, col_inputs = st.columns([2, 2])
-                    with col_info:
-                        if not voto_previo.empty:
-                            st.markdown(f"**{row['equipo1']} vs. {row['equipo2']}** <br> <span style='color:green;'>✔️ Ya cargado previamente: {val_def1} - {val_def2}</span>", unsafe_allow_html=True)
-                        else:
-                            st.markdown(f"**{row['equipo1']} vs. {row['equipo2']}** <br> <span style='color:orange;'>⏳ Pendiente de carga</span>", unsafe_allow_html=True)
+                    # Columna 2: Equipos
+                    with c2: st.markdown(f"**{row['equipo1']} vs. {row['equipo2']}**")
                     
-                    with col_inputs:
+                    # Columna 3: Carga de Goles
+                    with c3:
                         sub_c1, sub_c2 = st.columns(2)
-                        with sub_c1: g1 = st.number_input(f"Goles {row['equipo1']}", min_value=0, max_value=15, step=1, value=val_def1, key=f"u1_{row['id']}")
-                        with sub_c2: g2 = st.number_input(f"Goles {row['equipo2']}", min_value=0, max_value=15, step=1, value=val_def2, key=f"u2_{row['id']}")
+                        val_res1 = int(row['resultado1']) if pd.notna(row['resultado1']) else 0
+                        val_res2 = int(row['resultado2']) if pd.notna(row['resultado2']) else 0
+                        
+                        ya_jugado = st.checkbox("Cargar", value=pd.notna(row['resultado1']), key=f"play_{row['id']}")
+                        g_r1 = sub_c1.number_input("G1", min_value=0, max_value=15, step=1, value=val_res1, key=f"adm_r1_{row['id']}")
+                        g_r2 = sub_c2.number_input("G2", min_value=0, max_value=15, step=1, value=val_res2, key=f"adm_r2_{row['id']}")
                     
-                    inputs.append((row['id'], g1, g2))
+                    # Columna 4: Bloqueo de apuestas
+                    with c4:
+                        bloqueado = st.checkbox("🚫 Bloquear", value=(row['estado'] == 1), key=f"block_{row['id']}")
+                    
+                    admin_inputs.append((row['id'], ya_jugado, g_r1, g_r2, bloqueado))
                     st.markdown("---")
                     
                 if st.form_submit_button("💾 Guardar / Modificar mis Pronósticos"):
