@@ -15,7 +15,8 @@ def get_connection():
 def inicializar_base_datos():
     conn = get_connection()
     cursor = conn.cursor()
-    # Estructura actualizada con Grupo y Fecha del partido
+    
+    # Tabla de Partidos
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS partidos (
         id TEXT PRIMARY KEY,
@@ -28,6 +29,8 @@ def inicializar_base_datos():
         estado INTEGER DEFAULT 0
     )
     """)
+    
+    # Tabla de Predicciones
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS predicciones (
         usuario TEXT,
@@ -35,6 +38,14 @@ def inicializar_base_datos():
         pred_1 INTEGER,
         pred_2 INTEGER,
         PRIMARY KEY (usuario, partido_id)
+    )
+    """)
+    
+    # NUEVA: Tabla de Usuarios Habilitados y sus contraseñas
+    cursor.execute("""
+    CREATE TABLE IF NOT EXISTS usuarios_autorizados (
+        usuario TEXT PRIMARY KEY,
+        password TEXT
     )
     """)
     conn.commit()
@@ -46,6 +57,10 @@ inicializar_base_datos()
 conn = get_connection()
 partidos_df = pd.read_sql_query("SELECT * FROM partidos", conn)
 predicciones_df = pd.read_sql_query("SELECT * FROM predicciones", conn)
+try:
+    usuarios_auth_df = pd.read_sql_query("SELECT * FROM usuarios_autorizados", conn)
+except:
+    usuarios_auth_df = pd.DataFrame(columns=["usuario", "password"])
 conn.close()
 
 # --- PANEL DE ADMINISTRADOR EN LA BARRA LATERAL ---
@@ -57,24 +72,71 @@ with st.sidebar:
         if password == "pump2026":
             st.success("¡Acceso Admin concedido!")
             
-            # SECCIÓN A: VER USUARIOS DE ALTA
+            # SECCIÓN A: VER USUARIOS DE ALTA Y CONTROL DE ACCESO
             st.markdown("---")
-            st.subheader("👥 Usuarios Registrados")
-            if not predicciones_df.empty:
-                usuarios_alta = sorted(predicciones_df["usuario"].unique())
-                st.write(f"Total: **{len(usuarios_alta)}** usuarios activos")
-                st.caption(", ".join(usuarios_alta))
+            st.subheader("👥 Cuentas Habilitadas")
+            if not usuarios_auth_df.empty:
+                st.write(f"Total: **{len(usuarios_auth_df)}** usuarios con acceso.")
+                st.dataframe(usuarios_auth_df, use_container_width=True, hide_index=True)
             else:
-                st.info("Aún no hay usuarios dados de alta.")
+                st.info("No hay usuarios creados todavía. Usá la carga masiva de abajo.")
             
-            # SECCIÓN B: CARGA MASIVA ACTUALIZADA
+            # NUEVA SECCIÓN: CARGA MASIVA DE USUARIOS
+            st.markdown("---")
+            st.subheader("👥 Carga Masiva de Empleados")
+            st.write("Pegá la lista de usuarios respetando este orden:")
+            st.caption("usuario, contraseña (en minúsculas y sin espacios)")
+            st.code("javier, pump2026\nmarcelo, marce123\nleandro, becerra2026")
+            
+            data_usuarios_masiva = st.text_area("Lista de usuarios a habilitar:", height=150, key="txt_usuarios_masiva")
+            
+            if st.button("👥 Cargar Listado de Usuarios"):
+                if data_usuarios_masiva.strip():
+                    lineas = data_usuarios_masiva.strip().split("\n")
+                    usuarios_a_insertar = []
+                    errores_u = []
+                    
+                    for linea in lineas:
+                        if not linea.strip():
+                            continue
+                        partes = linea.split(",")
+                        if len(partes) == 2:
+                            u_name = partes[0].strip().lower()
+                            u_pass = partes[1].strip()
+                            if u_name and u_pass:
+                                usuarios_a_insertar.append((u_name, u_pass))
+                            else:
+                                errores_u.append(f"❌ Línea vacía: '{linea}'")
+                        else:
+                            errores_u.append(f"❌ Formato incorrecto: '{linea}'")
+                    
+                    if errores_u:
+                        for err in errores_u:
+                            st.error(err)
+                    elif usuarios_a_insertar:
+                        try:
+                            conn = get_connection()
+                            cursor = conn.cursor()
+                            cursor.executemany("""
+                                INSERT OR REPLACE INTO usuarios_autorizados (usuario, password) 
+                                VALUES (?, ?)
+                            """, usuarios_a_insertar)
+                            conn.commit()
+                            conn.close()
+                            st.success(f"¡Se habilitaron {len(usuarios_a_insertar)} usuarios correctamente!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error de Base de Datos: {e}")
+                else:
+                    st.warning("El cuadro de texto de usuarios está vacío.")
+            
+            # SECCIÓN B: CARGA MASIVA DE PARTIDOS
             st.markdown("---")
             st.subheader("⚡ Carga Masiva de Partidos")
-            st.write("Pegá los partidos respetando este orden:")
-            st.caption("ID, Grupo/Etapa, Equipo A, Equipo B, Año-Mes-Día Hora:Minuto")
-            st.code("1, Grupo A, Argentina, Canadá, 2026-06-20 21:00\n2, Grupo A, Perú, Chile, 2026-06-21 20:00")
+            st.write("Formatos de partidos:")
+            st.caption("ID, Grupo, Equipo A, Equipo B, AAAA-MM-DD HH:MM")
             
-            data_masiva = st.text_area("Lista de partidos a agregar:", height=150)
+            data_masiva = st.text_area("Lista de partidos a agregar:", height=120)
             
             if st.button("🚀 Inyectar Fixture Masivo"):
                 if data_masiva.strip():
@@ -93,14 +155,13 @@ with st.sidebar:
                             eq2 = partes[3].strip()
                             fecha_str = partes[4].strip()
                             
-                            # Validar que la fecha tenga el formato correcto
                             try:
                                 datetime.strptime(fecha_str, "%Y-%m-%d %H:%M")
                                 partidos_a_insertar.append((p_id, grupo, eq1, eq2, fecha_str))
                             except:
-                                errores.append(f"❌ Fecha inválida en línea: '{linea}'. Usar AAAA-MM-DD HH:MM")
+                                errores.append(f"❌ Fecha inválida en: '{linea}'. Usar AAAA-MM-DD HH:MM")
                         else:
-                            errores.append(f"❌ Formato incorrecto (deben ser 5 datos): '{linea}'")
+                            errores.append(f"❌ Deben ser 5 datos: '{linea}'")
                     
                     if errores:
                         for err in errores:
@@ -109,7 +170,6 @@ with st.sidebar:
                         try:
                             conn = get_connection()
                             cursor = conn.cursor()
-                            # INSERT OR REPLACE por si necesitás resubir partidos y actualizar datos
                             cursor.executemany("""
                                 INSERT OR REPLACE INTO partidos (id, grupo, equipo1, equipo2, fecha_partido, estado) 
                                 VALUES (?, ?, ?, ?, ?, 0)
@@ -119,10 +179,7 @@ with st.sidebar:
                             st.success(f"¡Se cargaron {len(partidos_a_insertar)} partidos con éxito!")
                             st.rerun()
                         except Exception as e:
-                            st.error(f"Error de Base de Datos: {e}")
-                else:
-                    st.warning("El cuadro de texto está vacío.")
-                    
+                            st.error(f"Error: {e}")
         elif password != "":
             st.error("Contraseña incorrecta")
 
@@ -160,76 +217,86 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "👑 Panel de Gestión Masiva (Admin)"
 ])
 
-# TAB 1: JUEGO DEL USUARIO (CON AUTOMATIZACIÓN DE LÍMITE DE 24 HORAS)
+# TAB 1: LOGIN SEGURO + CARGA Y MODIFICACIÓN
 with tab1:
     st.header("📝 Tus Pronósticos de la Fecha")
-    usuario = st.text_input("Ingresá tu nombre/usuario de la empresa para empezar:").strip().lower()
     
-    if usuario:
-        now = datetime.now()
-        partidos_abiertos = []
+    col_user, col_pass = st.columns(2)
+    with col_user:
+        usuario = st.text_input("Ingresá tu usuario de la empresa:").strip().lower()
+    with col_pass:
+        user_password = st.text_input("Ingresá tu contraseña:", type="password").strip()
+    
+    if usuario and user_password:
+        # Validación de credenciales
+        credenciales_correctas = False
+        if not usuarios_auth_df.empty:
+            usuario_row = usuarios_auth_df[usuarios_auth_df['usuario'] == usuario]
+            if not usuario_row.empty and str(usuario_row.iloc[0]['password']).strip() == user_password:
+                credenciales_correctas = True
         
-        # Filtramos en vivo cuáles partidos siguen disponibles para el usuario según la fecha límite
-        if not partidos_df.empty:
-            for idx, row in partidos_df.iterrows():
-                # Si el administrador lo bloqueó a mano, o si no tiene fecha cargada, o ya pasó el límite de 24hs
-                if row['estado'] == 1:
-                    continue
-                
-                if row['fecha_partido']:
-                    dt_partido = datetime.strptime(row['fecha_partido'], "%Y-%m-%d %H:%M")
-                    # Límite: 24 horas antes del partido
-                    dt_limite = dt_partido - timedelta(days=1)
-                    
-                    if now < dt_limite:
-                        partidos_abiertos.append(row)
-        
-        partidos_votables = pd.DataFrame(partidos_abiertos)
-        
-        if partidos_votables.empty:
-            st.info("No hay partidos abiertos para pronosticar en este momento. (Recordá que el límite cierra 24 horas antes de cada partido).")
+        if not credenciales_correctas:
+            st.error("❌ Usuario o contraseña incorrectos, o no estás dado de alta en el sistema todavía.")
         else:
-            st.subheader("⚽ Partidos disponibles para jugar o corregir")
-            st.write("💡 *Podés cambiar tus pronósticos las veces que quieras. Se congelarán automáticamente un día antes de cada partido.*")
+            st.success(f"🔓 ¡Autenticado como: **{usuario}**!")
             
-            with st.form("form_prode_usuario"):
-                inputs = []
-                for idx, row in partidos_votables.iterrows():
-                    voto_previo = predicciones_df[(predicciones_df['usuario'] == usuario) & (predicciones_df['partido_id'] == row['id'])]
-                    
-                    val_def1 = int(voto_previo.iloc[0]['pred_1']) if not voto_previo.empty else 0
-                    val_def2 = int(voto_previo.iloc[0]['pred_2']) if not voto_previo.empty else 0
-                    
-                    # Mostrar info clara de Grupo y cuándo cierra
-                    dt_p = datetime.strptime(row['fecha_partido'], "%Y-%m-%d %H:%M")
-                    dt_l = dt_p - timedelta(days=1)
-                    
-                    col_info, col_inputs = st.columns([2, 2])
-                    with col_info:
-                        st.markdown(f"🏆 **{row['grupo']}** | **{row['equipo1']} vs. {row['equipo2']}**")
-                        st.caption(f"📅 Partido: {dt_p.strftime('%d/%m %H:%M')} hs | 🔒 Cierra el: {dt_l.strftime('%d/%m %H:%M')} hs")
-                        if not voto_previo.empty:
-                            st.markdown(f"<span style='color:green;'>✔️ Tu carga actual: {val_def1} - {val_def2}</span>", unsafe_allow_html=True)
-                        else:
-                            st.markdown("<span style='color:orange;'>⏳ Pendiente de carga</span>", unsafe_allow_html=True)
-                    
-                    with col_inputs:
-                        sub_c1, sub_c2 = st.columns(2)
-                        with sub_c1: g1 = st.number_input(f"Goles {row['equipo1']}", min_value=0, max_value=15, step=1, value=val_def1, key=f"u1_{row['id']}")
-                        with sub_c2: g2 = st.number_input(f"Goles {row['equipo2']}", min_value=0, max_value=15, step=1, value=val_def2, key=f"u2_{row['id']}")
-                    
-                    inputs.append((row['id'], g1, g2))
-                    st.markdown("---")
-                    
-                if st.form_submit_button("💾 Guardar / Modificar mis Pronósticos"):
-                    conn = get_connection()
-                    cursor = conn.cursor()
-                    for p_id, g1, g2 in inputs:
-                        cursor.execute("INSERT OR REPLACE INTO predicciones (usuario, partido_id, pred_1, pred_2) VALUES (?, ?, ?, ?)", (usuario, str(p_id), int(g1), int(g2)))
-                    conn.commit()
-                    conn.close()
-                    st.success("¡Tus jugadas se guardaron o actualizaron con éxito!")
-                    st.rerun()
+            now = datetime.now()
+            partidos_abiertos = []
+            
+            if not partidos_df.empty:
+                for idx, row in partidos_df.iterrows():
+                    if row['estado'] == 1:
+                        continue
+                    if row['fecha_partido']:
+                        dt_partido = datetime.strptime(row['fecha_partido'], "%Y-%m-%d %H:%M")
+                        dt_limite = dt_partido - timedelta(days=1)
+                        if now < dt_limite:
+                            partidos_abiertos.append(row)
+            
+            partidos_votables = pd.DataFrame(partidos_abiertos)
+            
+            if partidos_votables.empty:
+                st.info("No hay partidos abiertos para pronosticar en este momento (recuerde que el límite cierra 24hs antes del juego).")
+            else:
+                st.subheader("⚽ Partidos disponibles para jugar o corregir")
+                
+                with st.form("form_prode_usuario"):
+                    inputs = []
+                    for idx, row in partidos_votables.iterrows():
+                        voto_previo = predicciones_df[(predicciones_df['usuario'] == usuario) & (predicciones_df['partido_id'] == row['id'])]
+                        
+                        val_def1 = int(voto_previo.iloc[0]['pred_1']) if not voto_previo.empty else 0
+                        val_def2 = int(voto_previo.iloc[0]['pred_2']) if not voto_previo.empty else 0
+                        
+                        dt_p = datetime.strptime(row['fecha_partido'], "%Y-%m-%d %H:%M")
+                        dt_l = dt_p - timedelta(days=1)
+                        
+                        col_info, col_inputs = st.columns([2, 2])
+                        with col_info:
+                            st.markdown(f"🏆 **{row['grupo']}** | **{row['equipo1']} vs. {row['equipo2']}**")
+                            st.caption(f"📅 Partido: {dt_p.strftime('%d/%m %H:%M')} hs | 🔒 Cierra: {dt_l.strftime('%d/%m %H:%M')} hs")
+                            if not voto_previo.empty:
+                                st.markdown(f"<span style='color:green;'>✔️ Tu carga actual: {val_def1} - {val_def2}</span>", unsafe_allow_html=True)
+                            else:
+                                st.markdown("<span style='color:orange;'>⏳ Pendiente de carga</span>", unsafe_allow_html=True)
+                        
+                        with col_inputs:
+                            sub_c1, sub_c2 = st.columns(2)
+                            with sub_c1: g1 = st.number_input(f"Goles {row['equipo1']}", min_value=0, max_value=15, step=1, value=val_def1, key=f"u1_{row['id']}")
+                            with sub_c2: g2 = st.number_input(f"Goles {row['equipo2']}", min_value=0, max_value=15, step=1, value=val_def2, key=f"u2_{row['id']}")
+                        
+                        inputs.append((row['id'], g1, g2))
+                        st.markdown("---")
+                        
+                    if st.form_submit_button("💾 Guardar / Modificar mis Pronósticos"):
+                        conn = get_connection()
+                        cursor = conn.cursor()
+                        for p_id, g1, g2 in inputs:
+                            cursor.execute("INSERT OR REPLACE INTO predicciones (usuario, partido_id, pred_1, pred_2) VALUES (?, ?, ?, ?)", (usuario, str(p_id), int(g1), int(g2)))
+                        conn.commit()
+                        conn.close()
+                        st.success("¡Tus pronósticos se guardaron o actualizaron con éxito!")
+                        st.rerun()
 
 # TAB 2: RANKING EN VIVO
 with tab2:
@@ -256,7 +323,7 @@ with tab3:
             tabla_ver.columns = ["Grupo/Etapa", "Equipo 1", "Equipo 2", "Su Pronóstico", "Resultado Oficial"]
             st.dataframe(tabla_ver, use_container_width=True)
 
-# TAB 4: PANTALLA MASIVA DEL ADMINISTRADOR (INCLUYE GRUPO Y FECHA)
+# TAB 4: PANTALLA MASIVA DEL ADMINISTRADOR
 with tab4:
     st.header("👑 Panel de Gestión Masiva (Exclusivo Administrador)")
     if modo_admin and password == "pump2026":
@@ -283,8 +350,7 @@ with tab4:
                         st.caption(f"🏆 {row['grupo']}")
                     with c2: 
                         st.markdown(f"**{row['equipo1']} vs. {row['equipo2']}**")
-                        if row['fecha_part_str' if 'fecha_part_str' in row else 'fecha_partido']:
-                            st.caption(f"📅 {row['fecha_partido']} hs")
+                        st.caption(f"📅 {row['fecha_partido']} hs")
                     with c3:
                         sub_c1, sub_c2 = st.columns(2)
                         val_res1 = int(row['resultado1']) if pd.notna(row['resultado1']) else 0
