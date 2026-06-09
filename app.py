@@ -164,7 +164,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
     "👑 Panel de Gestión Masiva (Admin)"
 ])
 
-# TAB 1: MI JUEGO (REDISEÑADO CON BANDERAS Y SIN LA PALABRA 'GOLES')
+# TAB 1: MI JUEGO (REVISADO AL 100% Y FORMULARIO COMPLETAMENTE CERRADO)
 with tab1:
     st.header("📝 Tus Pronósticos de la Fecha")
     col_user, col_pass = st.columns(2)
@@ -208,7 +208,6 @@ with tab1:
                         dt_p = datetime.strptime(row['fecha_partido'], "%Y-%m-%d %H:%M")
                         dt_l = dt_p - timedelta(days=1)
                         
-                        # Obtener banderas animadas por texto
                         b1 = obtener_bandera(row['equipo1'])
                         b2 = obtener_bandera(row['equipo2'])
                         
@@ -223,7 +222,6 @@ with tab1:
                         
                         with col_inputs:
                             sub_c1, sub_c2 = st.columns(2)
-                            # Se eliminó la palabra 'Goles' y se colocó directo la bandera para máxima limpieza visual
                             with sub_c1: g1 = st.number_input(f"{b1} {row['equipo1']}", min_value=0, max_value=15, step=1, value=val_def1, key=f"u1_{row['id']}")
                             with sub_c2: g2 = st.number_input(f"{row['equipo2']} {b2}", min_value=0, max_value=15, step=1, value=val_def2, key=f"u2_{row['id']}")
                         
@@ -259,7 +257,6 @@ with tab3:
             votos_merge["Resultado Real"] = votos_merge.apply(lambda r: f"{r['resultado1']} - {r['resultado2']}" if pd.notna(r['resultado1']) else "Pendiente ⏳", axis=1)
             votos_merge["Su Pronóstico"] = votos_merge["pred_1"].astype(str) + " - " + votos_merge["pred_2"].astype(str)
             
-            # Sumar banderas a la consulta de otros usuarios
             votos_merge["Partido"] = votos_merge["equipo1"].apply(obtener_bandera) + " " + votos_merge["equipo1"] + " vs. " + votos_merge["equipo2"] + " " + votos_merge["equipo2"].apply(obtener_bandera)
             
             tabla_ver = votos_merge[["grupo", "Partido", "Su Pronóstico", "Resultado Real"]]
@@ -273,4 +270,28 @@ with tab4:
         if partidos_df.empty:
             st.info("No hay partidos creados en el fixture todavía.")
         else:
-            with st.form("form_
+            with st.form("form_gestion_masiva_admin"):
+                admin_inputs = []
+                header_c1, header_c2, header_c3, header_c4 = st.columns([1, 3, 2, 2])
+                with header_c1: st.markdown("**ID / Grupo**")
+                with header_c2: st.markdown("**Partido / Horario**")
+                with header_c3: st.markdown("**Resultado Oficial**")
+                with header_c4: st.markdown("**Estado Manual**")
+                st.markdown("---")
+                
+                for idx, row in partidos_df.iterrows():
+                    c1, c2, c3, c4 = st.columns([1, 3, 2, 2])
+                    b1, b2 = obtener_bandera(row['equipo1']), obtener_bandera(row['equipo2'])
+                    
+                    with c1:
+                        st.write(f"#{row['id']}")
+                        st.caption(f"🏆 {row['grupo']}")
+                    with c2:
+                        st.markdown(f"{b1} **{row['equipo1']} vs. {row['equipo2']}** {b2}")
+                        st.caption(f"📅 {row['fecha_partido']} hs")
+                    with c3:
+                        sub_c1, sub_c2 = st.columns(2)
+                        val_res1 = int(row['resultado1']) if pd.notna(row['resultado1']) else 0
+                        val_res2 = int(row['resultado2']) if pd.notna(row['resultado2']) else 0
+                        
+                        ya_jugado = st.checkbox("Cargar", value=pd.not
