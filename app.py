@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
 import sqlite3
-import os
 
 st.set_page_config(page_title="Prode Empresarial", page_icon="⚽", layout="wide")
-st.title("⚽ Prode Mundialista de la Empresa")
+st.title("⚽ Prode Mundialista - Pump Control")
 
-# --- 1. CONEXIÓN Y CREACIÓN DE BASE DE DATOS LOCAL (SQLITE) ---
+# --- 1. BASE DE DATOS LOCAL (SQLITE) ---
 DB_NAME = "prode_internal.db"
 
 def get_connection():
@@ -15,89 +14,86 @@ def get_connection():
 def inicializar_base_datos():
     conn = get_connection()
     cursor = conn.cursor()
-    
-    # Crear tabla de Partidos si no existe
+    # Tabla de Partidos (estado: 0=Abierto, 1=Bloqueado/Cerrado)
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS partidos (
         id TEXT PRIMARY KEY,
         equipo1 TEXT,
         equipo2 TEXT,
         resultado1 INTEGER,
-        resultado2 INTEGER
+        resultado2 INTEGER,
+        estado INTEGER DEFAULT 0
     )
     """)
-    
-    # Crear tabla de Predicciones si no existe
+    # Tabla de Predicciones
     cursor.execute("""
     CREATE TABLE IF NOT EXISTS predicciones (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
         usuario TEXT,
         partido_id TEXT,
         pred_1 INTEGER,
-        pred_2 INTEGER
+        pred_2 INTEGER,
+        PRIMARY KEY (usuario, partido_id)
     )
     """)
-    
-    # Insertar Fixture Inicial de ejemplo si la tabla está vacía
-    cursor.execute("SELECT COUNT(*) FROM partidos")
-    if cursor.fetchone()[0] == 0:
-        fixture_inicial = [
-            ("1", "Argentina", "Arabia Saudita", None, None),
-            ("2", "México", "Polonia", None, None),
-            ("3", "Francia", "Australia", None, None),
-            ("4", "Dinamarca", "Túnez", None, None),
-            ("5", "Brasil", "Serbia", None, None),
-            ("6", "Portugal", "Ghana", None, None),
-        ]
-        cursor.executemany("INSERT INTO partidos VALUES (?, ?, ?, ?, ?)", fixture_inicial)
-        conn.commit()
+    conn.commit()
     conn.close()
 
-# Inicializamos las tablas internas
 inicializar_base_datos()
 
-# --- CARGAR DATOS A DATAFRAMES ---
+# --- CARGAR DATOS EN TIEMPO REAL ---
 conn = get_connection()
 partidos_df = pd.read_sql_query("SELECT * FROM partidos", conn)
 predicciones_df = pd.read_sql_query("SELECT * FROM predicciones", conn)
 conn.close()
 
-# --- PANEL DE ADMINISTRADOR OCULTO (Para que cargues resultados reales) ---
+# --- PANEL DE ADMINISTRADOR MEJORADO (PANTALLA MÁS AMIGABLE) ---
 with st.sidebar:
     st.header("⚙️ Panel de Control (Admin)")
     modo_admin = st.checkbox("Activar modo Administrador")
     if modo_admin:
         password = st.text_input("Contraseña de Admin", type="password")
-        if password == "pump2026":  # Podés cambiar esta contraseña cuando quieras
-            st.success("¡Acceso concedido!")
-            st.subheader("Cargar Resultados Reales")
+        if password == "pump2026":
+            st.success("¡Acceso Admin concedido!")
             
-            partido_a_editar = st.selectbox("Seleccionar partido jugado:", partidos_df["id"] + " - " + partidos_df["equipo1"] + " vs " + partidos_df["equipo2"])
-            p_id = partido_a_editar.split(" - ")[0]
+            # SECCIÓN A: VER USUARIOS DE ALTA
+            st.markdown("---")
+            st.subheader("👥 Usuarios Registrados")
+            if not predicciones_df.empty:
+                usuarios_alta = sorted(predicciones_df["usuario"].unique())
+                st.write(f"Total: **{len(usuarios_alta)}** usuarios activos")
+                st.caption(", ".join(usuarios_alta))
+            else:
+                st.info("Aún no hay usuarios dados de alta.")
             
-            col_res1, col_res2 = st.columns(2)
-            with col_res1:
-                r1 = st.number_input("Goles Equipo 1", min_value=0, max_value=15, step=1, key="admin_r1")
-            with col_res2:
-                r2 = st.number_input("Goles Equipo 2", min_value=0, max_value=15, step=1, key="admin_r2")
-                
-            if st.button("Actualizar Resultado Oficial"):
-                conn = get_connection()
-                cursor = conn.cursor()
-                cursor.execute("UPDATE partidos SET resultado1 = ?, resultado2 = ? WHERE id = ?", (int(r1), int(r2), p_id))
-                conn.commit()
-                conn.close()
-                st.success("Resultado actualizado en la base SQL. ¡Actualizando tablas!")
-                st.rerun()
+            # SECCIÓN B: AGREGAR PARTIDOS DE FORMA INDIVIDUAL
+            st.markdown("---")
+            st.subheader("➕ Agregar Partido al Fixture")
+            with st.form("form_add_partido"):
+                new_id = st.text_input("ID único (Ej: 1, 2, 3...):")
+                col_eq1, col_eq2 = st.columns(2)
+                with col_eq1: new_eq1 = st.text_input("Equipo A:")
+                with col_eq2: new_eq2 = st.text_input("Equipo B:")
+                if st.form_submit_button("Añadir Partido"):
+                    if new_id and new_eq1 and new_eq2:
+                        try:
+                            conn = get_connection()
+                            cursor = conn.cursor()
+                            cursor.execute("INSERT INTO partidos (id, equipo1, equipo2, estado) VALUES (?, ?, ?, 0)", (new_id.strip(), new_eq1.strip(), new_eq2.strip()))
+                            conn.commit()
+                            conn.close()
+                            st.success(f"Partido {new_id} añadido.")
+                            st.rerun()
+                        except: st.error("El ID ya existe.")
+                    else: st.warning("Completá todos los campos.")
         elif password != "":
             st.error("Contraseña incorrecta")
 
 # --- 2. MOTOR AUTOMÁTICO DE PUNTOS ---
 if not predicciones_df.empty and not partidos_df.empty:
-    prode_merge = pd.merge(predicciones_df, partidos_df, left_on="partido_id", right_on="id", how="left", suffixes=('_pred', '_real'))
+    prode_merge = pd.merge(predicciones_df, partidos_df, left_on="partido_id", right_on="id", how="left")
     
     def calcular_puntos(row):
-        if pd.isna(row['resultado1']) or pd.isna(row['resultado2']) or row['resultado1'] is None or row['resultado2'] is None: 
+        if pd.isna(row['resultado1']) or row['resultado1'] is None: 
             return 0
         try:
             p1, p2 = int(row['pred_1']), int(row['pred_2'])
@@ -107,8 +103,7 @@ if not predicciones_df.empty and not partidos_df.empty:
             if (p1 > p2) and (r1 > r2): return 1
             if (p1 < p2) and (r1 < r2): return 1
             return 0
-        except: 
-            return 0
+        except: return 0
 
     prode_merge['Puntos_Calculados'] = prode_merge.apply(calcular_puntos, axis=1)
     tabla_posiciones = prode_merge.groupby("usuario")["Puntos_Calculados"].sum().reset_index()
@@ -118,60 +113,103 @@ if not predicciones_df.empty and not partidos_df.empty:
 else:
     tabla_posiciones = pd.DataFrame(columns=["Usuario", "Puntos Totales"])
 
-# --- 3. INTERFAZ GRÁFICA ---
-tab1, tab2 = st.tabs(["📝 Cargar Pronósticos", "🏆 Tabla de Posiciones"])
+# --- 3. INTERFAZ GRÁFICA PRINCIPAL ---
+tab1, tab2, tab3, tab4 = st.tabs(["📝 Mi Juego / Cargar Pronósticos", "🏆 Tabla de Posiciones", "🔍 Ver Pronósticos de Otros", "👑 Panel de Gestión Masiva (Admin)"])
 
+# TAB 1: EL USUARIO CARGA, VERIFICA Y MODIFICA EN LA MISMA PANTALLA
 with tab1:
-    st.header("Dejá tus predicciones")
-    usuario = st.text_input("Ingresá tu nombre/usuario de la empresa:").strip().lower()
+    st.header("📝 Tus Pronósticos de la Fecha")
+    usuario = st.text_input("Ingresá tu nombre/usuario de la empresa para empezar:").strip().lower()
     
     if usuario:
-        st.subheader("Próximos Partidos")
-        # Partidos activos son los que no tienen resultado cargado aún
-        partidos_activos = partidos_df[partidos_df['resultado1'].isna() | (partidos_df['resultado1'].isnull())]
+        # Filtrar partidos que estén abiertos (estado == 0)
+        partidos_votables = partidos_df[partidos_df['estado'] == 0]
         
-        if partidos_activos.empty:
-            st.info("No hay partidos activos para pronosticar en este momento.")
+        if partidos_votables.empty:
+            st.info("No hay partidos abiertos para pronosticar en este momento. ¡Esperá a que se habilite la próxima fecha!")
         else:
-            ya_voto = False
-            if not predicciones_df.empty:
-                votos_usuario = predicciones_df[(predicciones_df['usuario'] == usuario) & (predicciones_df['partido_id'].isin(partidos_activos['id'].tolist()))]
-                if not votos_usuario.empty: 
-                    ya_voto = True
+            st.subheader("⚽ Partidos disponibles para jugar o corregir")
+            st.write("💡 *Abajo podés ver lo que cargaste previamente. Si querés corregir algo antes de que empiece el partido, cambialo y dale a 'Guardar Cambios'.*")
             
-            if ya_voto:
-                st.warning("⚠️ Ya registraste tus pronósticos para esta fecha.")
-            else:
-                with st.form("form_prode"):
-                    inputs = []
-                    for idx, row in partidos_activos.iterrows():
-                        st.write(f"⚽ **{row['equipo1']} vs. {row['equipo2']}**")
-                        col1, col2 = st.columns(2)
-                        with col1: 
-                            goles1 = st.number_input(f"Goles {row['equipo1']}", min_value=0, max_value=15, step=1, key=f"e1_{row['id']}")
-                        with col2: 
-                            goles2 = st.number_input(f"Goles {row['equipo2']}", min_value=0, max_value=15, step=1, key=f"e2_{row['id']}")
-                        inputs.append((row['id'], goles1, goles2))
-                        st.markdown("---")
-                        
-                    enviado = st.form_submit_button("Guardar Pronósticos")
-                    if enviado:
-                        try:
-                            conn = get_connection()
-                            cursor = conn.cursor()
-                            for p_id, g1, g2 in inputs:
-                                cursor.execute("INSERT INTO predicciones (usuario, partido_id, pred_1, pred_2) VALUES (?, ?, ?, ?)", (usuario, str(p_id), int(g1), int(g2)))
-                            conn.commit()
-                            conn.close()
-                            st.success("¡Perfecto! Tus jugadas se guardaron con éxito en el sistema.")
-                            st.rerun()
-                        except Exception as error_guardado: 
-                            st.error(f"Error al guardar en SQL: {error_guardado}")
+            with st.form("form_prode_usuario"):
+                inputs = []
+                for idx, row in partidos_votables.iterrows():
+                    # Validación en tiempo real: Buscamos si el usuario ya tiene un voto previo registrado en la base de datos
+                    voto_previo = predicciones_df[(predicciones_df['usuario'] == usuario) & (predicciones_df['partido_id'] == row['id'])]
+                    
+                    # Si ya votó, usamos su carga previa como valor por defecto, si no, arranca en 0
+                    val_def1 = int(voto_previo.iloc[0]['pred_1']) if not voto_previo.empty else 0
+                    val_def2 = int(voto_previo.iloc[0]['pred_2']) if not voto_previo.empty else 0
+                    
+                    # Interfaz amigable para el usuario
+                    col_info, col_inputs = st.columns([2, 2])
+                    with col_info:
+                        if not voto_previo.empty:
+                            st.markdown(f"**{row['equipo1']} vs. {row['equipo2']}** <br> <span style='color:green;'>✔️ Ya cargado previamente: {val_def1} - {val_def2}</span>", unsafe_allow_html=True)
+                        else:
+                            st.markdown(f"**{row['equipo1']} vs. {row['equipo2']}** <br> <span style='color:orange;'>⏳ Pendiente de carga</span>", unsafe_allow_html=True)
+                    
+                    with col_inputs:
+                        sub_c1, sub_c2 = st.columns(2)
+                        with sub_c1: g1 = st.number_input(f"Goles {row['equipo1']}", min_value=0, max_value=15, step=1, value=val_def1, key=f"u1_{row['id']}")
+                        with sub_c2: g2 = st.number_input(f"Goles {row['equipo2']}", min_value=0, max_value=15, step=1, value=val_def2, key=f"u2_{row['id']}")
+                    
+                    inputs.append((row['id'], g1, g2))
+                    st.markdown("---")
+                    
+                if st.form_submit_button("💾 Guardar / Modificar mis Pronósticos"):
+                    conn = get_connection()
+                    cursor = conn.cursor()
+                    for p_id, g1, g2 in inputs:
+                        # INSERT OR REPLACE actualiza la fila de manera automática si ya existe el par (usuario, partido_id)
+                        cursor.execute("INSERT OR REPLACE INTO predicciones (usuario, partido_id, pred_1, pred_2) VALUES (?, ?, ?, ?)", (usuario, str(p_id), int(g1), int(g2)))
+                    conn.commit()
+                    conn.close()
+                    st.success("¡Tus jugadas se procesaron con éxito! Podés volver a esta pestaña a revisarlas o cambiarlas cuando quieras antes del cierre.")
+                    st.rerun()
 
+# TAB 2: RANKING EN VIVO
 with tab2:
     st.header("🏆 Ranking de la Oficina en Vivo")
-    if tabla_posiciones.empty: 
-        st.info("Aún no hay predicciones cargadas en el sistema.")
+    if tabla_posiciones.empty: st.info("Aún no hay predicciones cargadas.")
+    else: st.table(tabla_posiciones)
+
+# TAB 3: CONSULTAR JUGADAS DE CUALQUIERA
+with tab3:
+    st.header("🔍 Consultar Pronósticos Registrados")
+    if predicciones_df.empty: st.info("No hay pronósticos registrados en el sistema.")
     else:
-        st.write("Sistema de puntos: **3 pts** resultado exacto | **1 pt** acertar ganador o empate.")
-        st.table(tabla_posiciones)
+        todos_usuarios = sorted(predicciones_df["usuario"].unique())
+        user_sel = st.selectbox("Seleccioná un compañero para ver su juego:", todos_usuarios)
+        if user_sel:
+            votos_user = predicciones_df[predicciones_df["usuario"] == user_sel]
+            votos_merge = pd.merge(votos_user, partidos_df, left_on="partido_id", right_on="id")
+            votos_merge["Resultado Real"] = votos_merge.apply(lambda r: f"{r['resultado1']} - {r['resultado2']}" if pd.notna(r['resultado1']) else "Pendiente ⏳", axis=1)
+            votos_merge["Su Pronóstico"] = votos_merge["pred_1"].astype(str) + " - " + votos_merge["pred_2"].astype(str)
+            tabla_ver = votos_merge[["equipo1", "equipo2", "Su Pronóstico", "Resultado Real"]]
+            tabla_ver.columns = ["Equipo 1", "Equipo 2", "Su Pronóstico", "Resultado Oficial"]
+            st.dataframe(tabla_ver, use_container_width=True)
+
+# TAB 4: PANTALLA MASIVA DEL ADMINISTRADOR (TODA LA FECHA EN UNA SOLA PANTALLA)
+with tab4:
+    st.header("👑 Panel de Gestión Masiva (Exclusivo Administrador)")
+    if modo_admin and password == "pump2026":
+        if partidos_df.empty:
+            st.info("No hay partidos creados en el fixture todavía. Podés agregar partidos desde la barra lateral izquierda.")
+        else:
+            st.write("Cargá los resultados oficiales y gestioná los bloqueos de **todos los partidos al mismo tiempo** abajo:")
+            
+            # Formulario masivo
+            with st.form("form_gestion_masiva_admin"):
+                admin_inputs = []
+                
+                # Encabezados de nuestra súper tabla manual
+                header_c1, header_c2, header_c3, header_c4 = st.columns([1, 3, 2, 2])
+                with header_c1: st.markdown("**ID**")
+                with header_c2: st.markdown("**Partido**")
+                with header_c3: st.markdown("**Resultado Oficial**")
+                with header_c4: st.markdown("**Estado / Bloqueo**")
+                st.markdown("---")
+                
+                for idx, row in partidos_df.iterrows():
+                    c1, c2, c3, c4 = st.columns(
